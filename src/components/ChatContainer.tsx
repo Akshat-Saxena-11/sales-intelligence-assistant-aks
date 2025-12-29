@@ -139,7 +139,7 @@ export function ChatContainer() {
                 Welcome to Sales Intelligence
               </h2>
               <p className="text-muted-foreground max-w-md">
-                Ask me about sales insights, lead analysis, market trends, or any sales-related questions. I'm here to help boost your sales performance.
+                How can I help you today?
               </p>
             </div>
           )}
