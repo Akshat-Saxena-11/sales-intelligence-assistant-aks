@@ -33,7 +33,7 @@ export function ChatInput({ onSendMessage, disabled }: ChatInputProps) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask about sales insights, leads, or market trends..."
+          placeholder="Ask your query here"
           className="min-h-[52px] max-h-[200px] resize-none bg-secondary/50 border-border/50 focus:border-primary/50 transition-colors"
           disabled={disabled}
           rows={1}
