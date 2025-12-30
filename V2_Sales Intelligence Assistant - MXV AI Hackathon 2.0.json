@@ -1,0 +1,562 @@
+{
+  "name": "V2_Sales Intelligence Assistant - AI Hackathon 2.0",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.message }}",
+        "options": {
+          "systemMessage": "=You are a Sales Intelligence AI Assistant for a mid-sized enterprise sales organisation.\nYou answer two classes of questions through a single chat interface:\n\n1. Policy / rule questions: (incentives, leave, escalation/discipline, ratings, territory rules, etc.)\n→ Use the appropriate policy retrieval tool(s).\n2. Performance / analytics questions: (targets, revenue, territories, rankings, counts, trends, etc.)\n→ Use run_sales_sql on the authoritative sales dataset.\n\nThe user must not need to know which mode is being used. Route internally.\n\nIf a question spans multiple policy documents or policy documents + sales data, call all relevant policy and/or data tools and combine the findings into one answer. Do not stop after the first tool if it doesn’t fully answer the question.\n\nA. Routing discipline:\n\n1. If the question asks about eligibility, allowance, consequences, approvals, interpretations, or policy rules, etc., use the relevant policy tool(s).\n2. If the question asks who / which / how many / highest / lowest / average / trend / comparison, etc. based on sales data, use run_sales_sql tool.\n3. If the question mixes both:\n- First, use run_sales_sql tool to compute the factual set.\n- Then, use the relevant policy tool(s) to put the data/facts in context of policy and use policy logic.\n- Combine into one coherent, crisp answer, not multiple sections.\n\nB. Core output contract:\n\n1. Keep answers short and “decision-first”\n- Do NOT paste long lists of “According to policy…” bullets.\n- Do NOT restate tool outputs verbatim.\n- Instead, use the tool outputs / policy sections and apply them towards answering the specific query of the user. No need to present separate tool-by-tool sections.\n2. Default length:\n- Policy answers: 1-3 lines (unless user asks for more detail)\n- SQL answers: 1–6 lines (unless the answer requires deviation from this).\n\nC. Policy answer standards:\n\nWhen answering policy questions;\n1. Start with a direct conclusion: Clearly state Yes / No / Allowed / Not allowed / Eligible / Not eligible / Partially correct, etc.\n2. Then justify using policy logic.\n3. Do not routinely add follow-up offers (“If you want, I can…”), unless the user explicitly asks for next steps.\n\nD. Sales data answer standards:\n\nWhen answering data-based questions;\n1. Result first: State the answer clearly in the first sentence (counts, names, rankings, etc.).\n2. Compact explanation: In case of queries involving calculations, give the method or key figures to support the answer in a very compact manner - for example, if a question is about change in a certain figure, the change can be mentioned in the main answer, but the initial & final values can also be mentioned in brackets. Similarly for comparison between any figures.\n3. Structured output: For multi-entity answers, instead of giving lists, just phrase the list in paragraph format with key figures. The paragraph should still be concise and easy to follow.\n4. Direct answers: For direct queries which can be answered concisely, a crisp, one-line output is sufficient.\n5. No unnecessary narrative: Avoid excessive storytelling; sound like a concise management report.\n\nE. SQL safety and correctness:\n\n1. Only generate read-only SQL: SELECT / WITH statements only.\n2. Always include a LIMIT (default 50 unless user wants more or returning a single aggregate).\n3. Prefer aggregations and grouped summaries over dumping raw rows.\n4. If a derived metric is needed, compute it explicitly in SQL.\n5. If the user’s request is ambiguous (timeframe, definition, metric), ask 1 short clarifying question unless a reasonable default is obvious—then state the assumption.\n\nF. Role sensitivity (implicit, not conversational):\n\n1. For salesperson-facing questions (mostly centered around policies): give a clear conclusion with logic based on policies.\n2. For leadership-facing questions (mostly centered around sales data): include rankings, counts, or comparisons when relevant. Keep the answers concise, easy to read and follow\n3. Do not explicitly reference the inferred role in the response.\n4. Maintain the same professional, concise tone across all answers.\n\nG. Reliability discipline:\n\n1. Never guess numbers.\n2. If tool output is incomplete, say what could not be verified and why.\n3. If the question cannot be answered using available policies or data:\n- Apologise briefly.\n- State clearly what can be answered instead."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        704,
+        -80
+      ],
+      "id": "d8313744-9fb8-4358-b58d-6d4a877e6a28",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "=Use this tool to answer questions about disciplinary actions, escalation levels, misconduct, investigations, penalties, and consequences.\n\nCovers: triggers for disciplinary proceedings, escalation mechanisms, impact on incentives, ratings, or continued role eligibility.\n\nIf disciplinary action impacts incentives or performance ratings, combine this policy with the Sales Incentive Policy or Performance Rating Framework.\n\nThis policy overrides other policies in case of conflict.",
+        "tableName": {
+          "__rl": true,
+          "value": "escalationpolicy2",
+          "mode": "list",
+          "cachedResultName": "escalationpolicy2"
+        },
+        "topK": 7,
+        "useReranker": true,
+        "options": {
+          "queryName": "match_escalationpolicy2"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        112,
+        144
+      ],
+      "id": "56ac0ede-7180-4508-bbb4-af66532f587b",
+      "name": "escalation policy",
+      "credentials": {
+        "supabaseApi": {
+          "id": "C17b24QdYMciZZk6",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "=Use this tool to answer questions about leave eligibility, approved vs unapproved leave, attendance expectations, excessive leave, and their consequences.\n\nCovers: approved leave limits, unapproved absence, attendance discipline, and interpretation of leave impact on incentives or performance.\n\nIf the question involves incentive eligibility or payout impact, also consult the Sales Incentive Policy.\n\nApproved leave does not automatically disqualify incentives, but may trigger proportional reduction or managerial review.",
+        "tableName": {
+          "__rl": true,
+          "value": "leavepolicy2",
+          "mode": "list",
+          "cachedResultName": "leavepolicy2"
+        },
+        "topK": 7,
+        "useReranker": true,
+        "options": {
+          "queryName": "match_leavepolicy2"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        400,
+        144
+      ],
+      "id": "63b868d2-cf98-410e-8e9e-7f87ef586f80",
+      "name": "leave policy",
+      "credentials": {
+        "supabaseApi": {
+          "id": "C17b24QdYMciZZk6",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "=Use this tool to answer questions about sales incentive eligibility, payout calculation, achievement bands, proration, overrides, clawbacks, audits, and disputes.\n\nCovers: incentive eligibility thresholds, achievement bands (below 90%, 90–99.99%, 100–109.99%, 110%+), impact of leave and attendance on incentives, quarterly reviews, deal attribution, territory changes, behavioral and compliance linkages, overrides, and dispute resolution.\n\nIf the question involves leave days, attendance, disciplinary actions, territory reassignment, or performance ratings, also consult the corresponding policy tools and combine the logic before answering.\n\nThis policy governs payout logic, but may be overridden by the Disciplinary Policy in case of conflict.",
+        "tableName": {
+          "__rl": true,
+          "value": "incentivepolicy2",
+          "mode": "list",
+          "cachedResultName": "incentivepolicy2"
+        },
+        "topK": 7,
+        "useReranker": true,
+        "options": {
+          "queryName": "match_incentivepolicy2"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        688,
+        144
+      ],
+      "id": "8d2ba03b-cc75-490d-944e-316fa692e3b2",
+      "name": "incentive policy",
+      "credentials": {
+        "supabaseApi": {
+          "id": "C17b24QdYMciZZk6",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "=Use this tool to answer questions about performance ratings, behavioral evaluation, appraisal logic, and how qualitative performance affects outcomes.\n\nCovers: performance dimensions, behavioral factors, rating implications, and their influence on incentives or future role decisions.\n\nIf the question involves incentive payout adjustment due to performance or behavior, also consult the Sales Incentive Policy.\n\nRatings influence incentives but do not directly calculate payouts.",
+        "tableName": {
+          "__rl": true,
+          "value": "ratingframework2",
+          "mode": "list",
+          "cachedResultName": "ratingframework2"
+        },
+        "topK": 7,
+        "useReranker": true,
+        "options": {
+          "queryName": "match_ratingframework2"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        976,
+        144
+      ],
+      "id": "f41b77d8-79de-4c57-a23c-e3eb8470936d",
+      "name": "rating framework",
+      "credentials": {
+        "supabaseApi": {
+          "id": "C17b24QdYMciZZk6",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "=Use this tool to answer questions about territory ownership, reassignment triggers, effective dates, revenue attribution, proration, and reassignment disputes.\n\nCovers: effective date rules, revenue attribution before and after reassignment, target recalibration, month-end / quarter-end handling, and reassignment due to underperformance or leave.\n\nIf the question involves incentives or performance evaluation after reassignment, also consult the Sales Incentive Policy or Performance Rating Framework.\n\nThis policy governs attribution logic, not payout calculation.",
+        "tableName": {
+          "__rl": true,
+          "value": "territoryrules2",
+          "mode": "list",
+          "cachedResultName": "territoryrules2"
+        },
+        "topK": 7,
+        "useReranker": true,
+        "options": {
+          "queryName": "match_territoryrules2"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        1264,
+        144
+      ],
+      "id": "1069f4cc-4174-43ad-8959-e3cc8324b53d",
+      "name": "territory rules",
+      "credentials": {
+        "supabaseApi": {
+          "id": "C17b24QdYMciZZk6",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        768,
+        352
+      ],
+      "id": "2495f26d-6a72-4752-bd31-d9251587b38f",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "q9lJj05rFA6Wqe4P",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "=Run read-only SQL queries on public.salesdata to answer analytical questions\n(queries about sales data, rankings, averages, totals, comparisons, territory/category summaries, incentive eligibility, etc.).\n\nThe table only has the following column names (along with the type of data and description of column where required, specified in brackets):\n- salesperson_id (text/string - this is the salesperson ID, for 50 salespersons, so it goes from SP01 to SP50)\n- salesperson_name (text/string - this is the salesperson's name)\n- territory (text/string - this will be North, South, East, or West)\n- category (text/string - this will be SMB, Enterprise, or Mid-Market)\n- monthly sales columns are named as jan, feb, mar, etc. till dec (double precision floating point number - 8 bytes)\n- total_revenue_inr_lakhs (double precision floating point number - 8 bytes)\n- target_revenue_inr_lakhs (integer - 8 bytes)\n- deals_closed (integer - 8 bytes)\n- active_days (integer - 8 bytes)\n- approved_leave_days (integer - 8 bytes)\n- incentive_eligible (text/string - this shows whether the salesperson is eligible for incentive or not, it will be either Yes or No)\n\nEach row represents the data for one salesperson for the current year 2025. There are no other columns in the table other than the ones specified.\n\nRules:\n1. SELECT or WITH only. No INSERT/UPDATE/DELETE/DDL.\n2. Always include LIMIT 50 unless returning a single aggregate.\n3. Ensure that the SQL query only refers to the columns that exist and that have been mentioned in this description, and no other columns.\n4. For row-level filtering, always use the WHERE clause. Only use the HAVING clause when a GROUP BY clause and aggregate functions are present in the query.\n5. If a query needs to filter on a computed/derived value (any expression, CASE, ratio, band, count of conditions, H1/H2, % target achieved, etc.), compute it in a CTE/subquery and apply the filter in the outer WHERE. Do not filter using SELECT aliases in WHERE/HAVING.",
+        "operation": "executeQuery",
+        "query": "{{$fromAI('sql_query')}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        1552,
+        144
+      ],
+      "id": "01bab5bb-37e7-4fe9-b5ca-24a5bdffaae4",
+      "name": "run_sales_sql",
+      "credentials": {
+        "postgres": {
+          "id": "IIZTxDb6iqEMXvz1",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "Akshat-AI-Hackathon-2",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -240,
+        -80
+      ],
+      "id": "0cb40014-ccb7-40ab-b53a-e6ee08dfd037",
+      "name": "Webhook",
+      "webhookId": "7fdc3c81-bfec-4f50-9694-04be2be5a10f",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1760,
+        -80
+      ],
+      "id": "6f83c88b-5a47-4b65-8060-48ff51238743",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -16,
+        144
+      ],
+      "id": "c5323eac-189f-4010-9c07-1009f8a23480",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "q9lJj05rFA6Wqe4P",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.rerankerCohere",
+      "typeVersion": 1,
+      "position": [
+        256,
+        352
+      ],
+      "id": "a5226ffd-d108-4e91-b021-0564e2598cda",
+      "name": "Reranker Cohere",
+      "credentials": {
+        "cohereApi": {
+          "id": "ie9mkruQ2QhLYx9Z",
+          "name": "CohereApi account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.rerankerCohere",
+      "typeVersion": 1,
+      "position": [
+        544,
+        352
+      ],
+      "id": "7b5a6d54-6537-4664-b968-384c17b8cda6",
+      "name": "Reranker Cohere1",
+      "credentials": {
+        "cohereApi": {
+          "id": "ie9mkruQ2QhLYx9Z",
+          "name": "CohereApi account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.rerankerCohere",
+      "typeVersion": 1,
+      "position": [
+        880,
+        400
+      ],
+      "id": "559b5729-d7f3-48ec-a124-f2c379053b2b",
+      "name": "Reranker Cohere2",
+      "credentials": {
+        "cohereApi": {
+          "id": "ie9mkruQ2QhLYx9Z",
+          "name": "CohereApi account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.rerankerCohere",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        352
+      ],
+      "id": "518c8ed6-1e16-48e6-ae0c-417e47825454",
+      "name": "Reranker Cohere3",
+      "credentials": {
+        "cohereApi": {
+          "id": "ie9mkruQ2QhLYx9Z",
+          "name": "CohereApi account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.rerankerCohere",
+      "typeVersion": 1,
+      "position": [
+        1408,
+        352
+      ],
+      "id": "f7fea66f-4f71-4db9-9035-948f9de033f7",
+      "name": "Reranker Cohere4",
+      "credentials": {
+        "cohereApi": {
+          "id": "ie9mkruQ2QhLYx9Z",
+          "name": "CohereApi account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "escalation policy": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "leave policy": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "incentive policy": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "rating framework": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "territory rules": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "escalation policy",
+            "type": "ai_embedding",
+            "index": 0
+          },
+          {
+            "node": "leave policy",
+            "type": "ai_embedding",
+            "index": 0
+          },
+          {
+            "node": "incentive policy",
+            "type": "ai_embedding",
+            "index": 0
+          },
+          {
+            "node": "rating framework",
+            "type": "ai_embedding",
+            "index": 0
+          },
+          {
+            "node": "territory rules",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "run_sales_sql": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reranker Cohere": {
+      "ai_reranker": [
+        [
+          {
+            "node": "escalation policy",
+            "type": "ai_reranker",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reranker Cohere1": {
+      "ai_reranker": [
+        [
+          {
+            "node": "leave policy",
+            "type": "ai_reranker",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reranker Cohere2": {
+      "ai_reranker": [
+        [
+          {
+            "node": "incentive policy",
+            "type": "ai_reranker",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reranker Cohere3": {
+      "ai_reranker": [
+        [
+          {
+            "node": "rating framework",
+            "type": "ai_reranker",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reranker Cohere4": {
+      "ai_reranker": [
+        [
+          {
+            "node": "territory rules",
+            "type": "ai_reranker",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "b8f46ee8-9661-478f-8e6f-31e82cbf7d4b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "949db55805ef34586c14b9f5edea4f790ec1263ce5ca2feddb08a641b9bb3a60"
+  },
+  "id": "zepCqMkKE4ljNBnL",
+  "tags": []
+}
