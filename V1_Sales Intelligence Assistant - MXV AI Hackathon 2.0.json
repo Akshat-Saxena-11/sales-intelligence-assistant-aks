@@ -1,0 +1,412 @@
+{
+  "name": "RAG Agent - AIHackathon 2.0",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.message }}",
+        "options": {
+          "systemMessage": "=You are a Sales Intelligence AI Assistant for a mid-sized enterprise sales org. You must answer two classes of queries in a single chat interface:\n\n1. Policy / rule questions (incentives, leave, escalation/discipline, ratings, territory rules): use the appropriate policy retrieval tool.\n\n2. Performance / analytics questions (targets, revenue, territories, rankings, counts, trends): use the SQL tool on the authoritative sales dataset.\n\nThe user must not need to know which mode is being used. Route internally. If the question spans multiple policy areas, call all relevant policy tools and combine the findings into one answer. Do not stop after the first tool if it doesn’t fully answer the question.\n\nRouting rules:\n\n1. If the question asks what is allowed / eligibility / consequences / rules / policy interpretation, use the relevant policy tool.\n\n2. If the question asks who/which/how many/highest/lowest/average/percentage/trend based on sales data and performance numbers, use run_sales_sql.\n\n3. If the question mixes both (e.g., “who missed target but still incentive-eligible, and why?”):\n- Use run_sales_sql to identify the set of salespersons.\n- Use the relevant policy tool to explain the eligibility logic.\n- Combine into one clear answer.\n\nSQL safety and correctness:\n\n1. Only generate read-only SQL: SELECT / WITH statements only.\n\n2. Always include a LIMIT (default 50 unless user wants more).\n\n3. Prefer aggregations and grouped summaries over dumping raw rows.\n\n4. If the user’s request is ambiguous (timeframe, definition, metric), ask 1 short clarifying question unless a reasonable default is obvious—then state the assumption.\n\nAnswer style (role-sensitive):\n\n1. Infer role from phrasing:\n- “Am I / my leave / my eligibility” → salesperson-style: direct, actionable, policy-aligned.\n- “Which territory / how many / identify outliers” → manager-style: ranked lists, counts, crisp explanations.\n\n3. When using policy tools, cite the policy evidence (quote short snippets or paraphrase and refer to the retrieved excerpts).\n\n4. When using SQL, briefly describe what you computed (e.g., “computed % target achieved = total_revenue / target_revenue”).\n\nReliability discipline:\n\n1. Never guess numbers.\n\n2. If tool results are incomplete, say what you could not verify and what you would need.\n\n3. If the user's question pertains to something for which you don't have the data, or is asking irrelevant questions not related to any data you have, politely apologise, say that you would be unable to answer that query reliably, and state briefly what all you can answer."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        704,
+        -80
+      ],
+      "id": "d8313744-9fb8-4358-b58d-6d4a877e6a28",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Use this tool if user has a query about the disciplinary and escalation policy.",
+        "tableName": {
+          "__rl": true,
+          "value": "escalationpolicy",
+          "mode": "list",
+          "cachedResultName": "escalationpolicy"
+        },
+        "options": {
+          "queryName": "match_escalationpolicy"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        112,
+        144
+      ],
+      "id": "56ac0ede-7180-4508-bbb4-af66532f587b",
+      "name": "escalation policy",
+      "credentials": {
+        "supabaseApi": {
+          "id": "C17b24QdYMciZZk6",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Use this tool if user has a query about the leave and attendance policy.",
+        "tableName": {
+          "__rl": true,
+          "value": "leavepolicy",
+          "mode": "list",
+          "cachedResultName": "leavepolicy"
+        },
+        "options": {
+          "queryName": "match_leavepolicy"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        400,
+        144
+      ],
+      "id": "63b868d2-cf98-410e-8e9e-7f87ef586f80",
+      "name": "leave policy",
+      "credentials": {
+        "supabaseApi": {
+          "id": "C17b24QdYMciZZk6",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Use this tool if user has a query about the sales incentive policy.",
+        "tableName": {
+          "__rl": true,
+          "value": "incentivepolicy",
+          "mode": "list",
+          "cachedResultName": "incentivepolicy"
+        },
+        "options": {
+          "queryName": "match_incentivepolicy"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        688,
+        144
+      ],
+      "id": "8d2ba03b-cc75-490d-944e-316fa692e3b2",
+      "name": "incentive policy",
+      "credentials": {
+        "supabaseApi": {
+          "id": "C17b24QdYMciZZk6",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Use this tool if user has a query about the performance rating framework.",
+        "tableName": {
+          "__rl": true,
+          "value": "ratingframework",
+          "mode": "list",
+          "cachedResultName": "ratingframework"
+        },
+        "options": {
+          "queryName": "match_ratingframework"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        976,
+        144
+      ],
+      "id": "f41b77d8-79de-4c57-a23c-e3eb8470936d",
+      "name": "rating framework",
+      "credentials": {
+        "supabaseApi": {
+          "id": "C17b24QdYMciZZk6",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Use this tool if user has a query about the territory reassignment rules.",
+        "tableName": {
+          "__rl": true,
+          "value": "territoryrules",
+          "mode": "list",
+          "cachedResultName": "territoryrules"
+        },
+        "options": {
+          "queryName": "match_territoryrules"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        1264,
+        144
+      ],
+      "id": "1069f4cc-4174-43ad-8959-e3cc8324b53d",
+      "name": "territory rules",
+      "credentials": {
+        "supabaseApi": {
+          "id": "C17b24QdYMciZZk6",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        768,
+        352
+      ],
+      "id": "2495f26d-6a72-4752-bd31-d9251587b38f",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "q9lJj05rFA6Wqe4P",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Run read-only SQL queries on public.salesdata to answer analytical questions\n(queries about sales data, rankings, averages, totals, comparisons, territory/category summaries, incentive eligibility, etc.).\n\nThe table only has the following column names (along with the type of data specified in brackets):\n- salesperson_id (text/string)\n- salesperson_name (text/string)\n- territory (text/string)\n- category (text/string)\n- monthly sales columns are named as jan, feb, mar, etc. till dec (double precision floating point number - 8 bytes)\n- total_revenue_inr_lakhs (double precision floating point number - 8 bytes)\n- target_revenue_inr_lakhs (integer - 8 bytes)\n- deals_closed (integer - 8 bytes)\n- active_days (integer - 8 bytes)\n- approved_leave_days (integer - 8 bytes)\n- incentive_eligible (text/string)\n\nEach row represents the data for one salesperson for the current year 2025. There are no other columns in the table other than the ones specified.\n\nRules:\n1. SELECT or WITH only. No INSERT/UPDATE/DELETE/DDL.\n2. Always include LIMIT 50 unless returning a single aggregate.\n3. Ensure that the SQL query only refers to the columns that exist and that have been mentioned in this description, and no other columns.\n4. For row-level filtering, always use the WHERE clause. Only use the HAVING clause when a GROUP BY clause and aggregate functions are present in the query.\n5. Do not reference a SELECT alias in WHERE/HAVING. If filtering on a derived column, use a subquery/CTE and filter in the outer WHERE.",
+        "operation": "executeQuery",
+        "query": "{{$fromAI('sql_query')}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        1552,
+        144
+      ],
+      "id": "01bab5bb-37e7-4fe9-b5ca-24a5bdffaae4",
+      "name": "run_sales_sql",
+      "credentials": {
+        "postgres": {
+          "id": "IIZTxDb6iqEMXvz1",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "Akshat-AI-Hackathon-2",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -240,
+        -80
+      ],
+      "id": "0cb40014-ccb7-40ab-b53a-e6ee08dfd037",
+      "name": "Webhook",
+      "webhookId": "7fdc3c81-bfec-4f50-9694-04be2be5a10f",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1760,
+        -80
+      ],
+      "id": "6f83c88b-5a47-4b65-8060-48ff51238743",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -16,
+        144
+      ],
+      "id": "c5323eac-189f-4010-9c07-1009f8a23480",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "q9lJj05rFA6Wqe4P",
+          "name": "OpenAi account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "escalation policy": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "leave policy": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "incentive policy": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "rating framework": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "territory rules": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "escalation policy",
+            "type": "ai_embedding",
+            "index": 0
+          },
+          {
+            "node": "leave policy",
+            "type": "ai_embedding",
+            "index": 0
+          },
+          {
+            "node": "incentive policy",
+            "type": "ai_embedding",
+            "index": 0
+          },
+          {
+            "node": "rating framework",
+            "type": "ai_embedding",
+            "index": 0
+          },
+          {
+            "node": "territory rules",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "run_sales_sql": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "b9a70fe3-7339-48ff-8eb6-e35eaacee065",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "949db55805ef34586c14b9f5edea4f790ec1263ce5ca2feddb08a641b9bb3a60"
+  },
+  "id": "zepCqMkKE4ljNBnL",
+  "tags": []
+}
